@@ -147,7 +147,21 @@ jobs:
           npx cap add android
           npx cap sync android
       - name: Build debug APK
-        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+        run: |
+          mkdir -p ~/.gradle/init.d
+          cat > ~/.gradle/init.d/mirror.gradle <<'GRADLEEOF'
+          allprojects {
+            def fix = { repo ->
+              if (repo instanceof MavenArtifactRepository && repo.url.toString().contains("repo.maven.apache.org")) {
+                repo.url = "https://maven-central.storage-download.googleapis.com/maven2/"
+              }
+            }
+            buildscript.repositories.all(fix)
+            repositories.all(fix)
+          }
+          GRADLEEOF
+          cd android && chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon || ./gradlew assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
           name: ChemQuest-APK
