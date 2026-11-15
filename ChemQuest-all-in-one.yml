@@ -1,0 +1,154 @@
+name: Build APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Create game file
+        run: |
+          mkdir www
+          cat > www/index.html <<'CHEMEOF'
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+          <title>Chem Quest – Yusuf Dghaish</title>
+          <style>
+          :root{color-scheme:dark;--bg:#0b1020;--card:#161d38;--ac:#4df0c4;--ac2:#8b6cff;--tx:#eaf0ff;--dim:#8f9bc4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+          *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#1b2350,var(--bg));color:var(--tx);font-family:system-ui,Tahoma,sans-serif;min-height:100vh}
+          header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px}
+          h1{font-size:18px;margin:0;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;color:transparent}
+          select,button{font:inherit;border:0;border-radius:12px;color:var(--tx)}
+          select{background:var(--card);padding:6px}
+          nav{display:flex;gap:6px;padding:0 10px}nav button{flex:1;padding:10px;background:var(--card)}nav .on{background:linear-gradient(90deg,var(--ac2),var(--ac));color:#06101a;font-weight:700}
+          main{padding:10px}.card{background:var(--card);border-radius:16px;padding:12px;margin-bottom:10px;box-shadow:0 6px 24px #0006}
+          .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+          .el{background:#222c55;padding:6px 2px;text-align:center;font-size:11px;cursor:pointer;border:1px solid #fff1}
+          .el b{display:block;font-size:17px;color:var(--ac)}.el.sel{outline:2px solid var(--ac2);background:#33407d}
+          .slots{display:flex;align-items:center;justify-content:center;gap:10px;font-size:26px;margin:8px 0}
+          .slot{min-width:70px;min-height:56px;border:2px dashed var(--ac2);border-radius:14px;display:flex;align-items:center;justify-content:center}
+          .go{width:100%;padding:13px;background:linear-gradient(90deg,var(--ac2),var(--ac));color:#06101a;font-weight:800;font-size:16px}
+          .res{margin-top:10px;line-height:1.7;font-size:14px}.res h3{margin:0;color:var(--ac)}
+          canvas{width:100%;border-radius:16px;background:#000}
+          .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.acts button{background:#2a3566;padding:9px 12px}
+          .node{display:flex;align-items:center;gap:10px;padding:10px;margin:6px 0;border-radius:12px;background:#222c55}.node.lock{opacity:.4}
+          .node button{margin-inline-start:auto;background:var(--ac);color:#06101a;padding:7px 14px;font-weight:700}
+          .splash{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9;transition:opacity 1s;text-align:center}
+          .splash h2{font-size:34px;margin:0;background:linear-gradient(90deg,var(--ac),var(--ac2));-webkit-background-clip:text;color:transparent}
+          </style></head><body>
+          <div class="splash" id="sp"><div style="font-size:70px">⚗️</div><h2>Chem Quest</h2><p id="dev"></p></div>
+          <header><h1 id="ttl"></h1><select id="lang"><option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option><option value="es">Español</option></select></header>
+          <nav id="nav"></nav>
+          <main id="m"></main>
+          <script>
+          const T={
+          ar:{lab:"المختبر",adv:"المغامرة",map:"الخريطة",els:"العناصر",mix:"امزج!",found:"أين يوجد",withw:"يتفاعل مع",pick:"اختر عنصرين أو مركبين",none:"لا يوجد تفاعل بينهما. جرّب غيرهما!",made:"الناتج",does:"قدرته في اللعبة",heal:"شفاء",dmg:"ضرر",shield:"درع",weak:"إضعاف العدو",stun:"تجميد العدو",hit:"ضربة عادية",hp:"الصحة",win:"فزت! فُتحت مرحلة جديدة",lose:"خسرت! حاول مجددًا",dis:"اكتشفت",locked:"مقفلة",go:"قاتل",devl:"المطوّر: يوسف دغيش",need:"اكتشف مركبات في المختبر لتستخدمها في القتال",stars:"النجوم",water:"الماء",air:"الهواء",crust:"القشرة الأرضية",ocean:"البحار",minerals:"المعادن",body:"الجسم",plants:"النباتات",rare:"نادر"},
+          en:{lab:"Lab",adv:"Adventure",map:"Map",els:"Elements",mix:"Mix!",found:"Found in",withw:"Reacts with",pick:"Pick two elements or compounds",none:"No reaction. Try others!",made:"Product",does:"In-game power",heal:"Heal",dmg:"Damage",shield:"Shield",weak:"Weakens enemy",stun:"Stuns enemy",hit:"Basic strike",hp:"HP",win:"Victory! New stage unlocked",lose:"Defeated! Try again",dis:"Discovered",locked:"Locked",go:"Fight",devl:"Developer: Yusuf Dghaish",need:"Discover compounds in the Lab to use them in battle",stars:"Stars",water:"Water",air:"Air",crust:"Earth crust",ocean:"Seas",minerals:"Minerals",body:"Body",plants:"Plants",rare:"Rare"},
+          fr:{lab:"Labo",adv:"Aventure",map:"Carte",els:"Éléments",mix:"Mélanger !",found:"Présent dans",withw:"Réagit avec",pick:"Choisis deux éléments ou composés",none:"Aucune réaction. Essaie autre chose !",made:"Produit",does:"Pouvoir en jeu",heal:"Soin",dmg:"Dégâts",shield:"Bouclier",weak:"Affaiblit l’ennemi",stun:"Étourdit l’ennemi",hit:"Coup simple",hp:"PV",win:"Victoire ! Nouvelle étape débloquée",lose:"Défaite ! Réessaie",dis:"Découvert",locked:"Verrouillé",go:"Combattre",devl:"Développeur : Yusuf Dghaish",need:"Découvre des composés au labo pour combattre",stars:"Étoiles",water:"Eau",air:"Air",crust:"Croûte terrestre",ocean:"Mers",minerals:"Minéraux",body:"Corps",plants:"Plantes",rare:"Rare"},
+          es:{lab:"Laboratorio",adv:"Aventura",map:"Mapa",els:"Elementos",mix:"¡Mezclar!",found:"Se encuentra en",withw:"Reacciona con",pick:"Elige dos elementos o compuestos",none:"Sin reacción. ¡Prueba otros!",made:"Producto",does:"Poder en el juego",heal:"Curar",dmg:"Daño",shield:"Escudo",weak:"Debilita al enemigo",stun:"Aturde al enemigo",hit:"Golpe básico",hp:"PS",win:"¡Victoria! Nueva etapa desbloqueada",lose:"¡Derrota! Inténtalo de nuevo",dis:"Descubierto",locked:"Bloqueada",go:"Luchar",devl:"Desarrollador: Yusuf Dghaish",need:"Descubre compuestos en el laboratorio para luchar",stars:"Estrellas",water:"Agua",air:"Aire",crust:"Corteza terrestre",ocean:"Mares",minerals:"Minerales",body:"Cuerpo",plants:"Plantas",rare:"Raro"}};
+          // symbol|en|ar|where
+          const E=`H|Hydrogen|هيدروجين|stars,water
+          He|Helium|هيليوم|stars
+          Li|Lithium|ليثيوم|minerals
+          C|Carbon|كربون|body,plants,air
+          N|Nitrogen|نيتروجين|air,body
+          O|Oxygen|أكسجين|air,water,crust
+          F|Fluorine|فلور|minerals
+          Ne|Neon|نيون|air
+          Na|Sodium|صوديوم|ocean,crust
+          Mg|Magnesium|مغنيسيوم|ocean,plants
+          Al|Aluminium|ألمنيوم|crust
+          Si|Silicon|سيليكون|crust
+          P|Phosphorus|فوسفور|body,minerals
+          S|Sulfur|كبريت|minerals
+          Cl|Chlorine|كلور|ocean
+          Ar|Argon|أرغون|air
+          K|Potassium|بوتاسيوم|plants,crust
+          Ca|Calcium|كالسيوم|body,crust,ocean
+          Fe|Iron|حديد|crust,body
+          Cu|Copper|نحاس|minerals
+          Zn|Zinc|خارصين|minerals
+          Ag|Silver|فضة|rare
+          Au|Gold|ذهب|rare
+          Hg|Mercury|زئبق|rare
+          Pb|Lead|رصاص|minerals
+          U|Uranium|يورانيوم|rare`.split("\n").map(l=>{let[s,e,a,w]=l.split("|");return{s,e,a,w:w.split(",")}});
+          // reaction: ids | formula | en | ar | type | power
+          const R=[["H,O","H₂O","Water","ماء","heal",30],["Na,Cl","NaCl","Salt","ملح الطعام","shield",25],["Fe,O","Fe₂O₃","Rust","صدأ","weak",5],["C,O","CO₂","Carbon dioxide","ثاني أكسيد الكربون","dmg",14],["Ca,O","CaO","Quicklime","الجير الحي","dmg",24],["H,Cl","HCl","Hydrochloric acid","حمض الهيدروكلوريك","dmg",30],["H,N","NH₃","Ammonia","نشادر","stun",1],["Mg,O","MgO","Magnesia flash","مغنيسيا","dmg",20],["C,H","CH₄","Methane","ميثان","dmg",34],["Fe,S","FeS","Iron sulfide","كبريتيد الحديد","dmg",16],["Al,O","Al₂O₃","Alumina armor","أكسيد الألمنيوم","shield",35],["Cu,O","CuO","Copper oxide","أكسيد النحاس","dmg",18],["Si,O","SiO₂","Silica (sand)","سيليكا (رمل)","shield",20],["Ca,C","CaC","Calcium carbide","كربيد الكالسيوم","dmg",22],["CO₂,H₂O","H₂CO₃","Soda water","ماء غازي","heal",22],["H₂O,NaCl","NaCl(aq)","Brine","محلول ملحي","stun",1]];
+          const FM={H:"H",He:"He"};const RX={};
+          R.forEach(r=>{RX[r[0].split(",").sort().join("+")]=r});
+          const ENEM=[["Rust Slime","وحل الصدأ","🟤",60,7],["Gas Ghost","شبح الغاز","👻",90,9],["Crystal Golem","غولم البلور","💎",130,11],["Dragon of Fire","تنين اللهب","🐉",180,14]];
+          let L="ar",tab="lab",pa=null,pb=null,disc=JSON.parse("[]"),stage=0,unlocked=1,bt=null,fx=[];
+          const $=id=>document.getElementById(id),t=k=>T[L][k]||k;
+          const nm=e=>L=="ar"?e.a:e.e, rn=r=>L=="ar"?r[3]:r[2];
+          const el=(tg,c,tx,p)=>{let x=document.createElement(tg);if(c)x.className=c;if(tx!=null)x.textContent=tx;if(p)p.append(x);return x};
+          function setLang(l){L=l;document.documentElement.lang=l;document.documentElement.dir=l=="ar"?"rtl":"ltr";$("ttl").textContent="⚗️ Chem Quest";$("dev").textContent=t("devl");render()}
+          function render(){const n=$("nav");n.replaceChildren();["lab","adv","map"].forEach(k=>{let b=el("button",tab==k?"on":"",t(k),n);b.onclick=()=>{tab=k;render()}});
+          const m=$("m");m.replaceChildren();({lab,adv,map})[tab](m)}
+          function item(id){return id}
+          function lab(m){const c=el("div","card","",m);
+          const sl=el("div","slots","",c);const A=el("div","slot",pa||"?",sl);el("span","","+",sl);const B=el("div","slot",pb||"?",sl);
+          const go=el("button","go",t("mix"),c);const res=el("div","res",t("pick"),c);
+          go.onclick=()=>{if(!pa||!pb)return;const r=RX[[pa,pb].sort().join("+")];res.replaceChildren();
+          if(!r){res.textContent=t("none");return}
+          if(!disc.includes(r[1]))disc.push(r[1]);
+          el("h3","","✨ "+t("made")+": "+r[1]+" – "+rn(r),res);
+          el("div","",t("does")+": "+t(r[4])+(r[4]=="dmg"||r[4]=="heal"||r[4]=="shield"?" ("+r[5]+")":""),res);burst()};
+          const pick=id=>{if(!pa||(pa&&pb))[pa,pb]=[id,null];else pb=id;A.textContent=pa||"?";B.textContent=pb||"?"};
+          if(disc.length){const d=el("div","grid","",c);disc.forEach(f=>{const x=el("div","el","",d);el("b","",f,x);x.onclick=()=>pick(FRM(f))})}
+          const g=el("div","card grid","",m);
+          E.forEach(e=>{const x=el("div","el","",g);el("b","",e.s,x);el("span","",nm(e),x);x.onclick=()=>{pick(e.s);info.replaceChildren();
+          el("h3","",e.s+" – "+nm(e),info);el("div","",t("found")+": "+e.w.map(t).join(", "),info);
+          const w=Object.values(RX).filter(r=>r[0].split(",").includes(e.s)).map(r=>r[0].split(",").find(z=>z!=e.s)+" → "+r[1]);
+          el("div","",t("withw")+": "+(w.join(" | ")||"—"),info)}});
+          const info=el("div","card res","",m)}
+          function FRM(f){const r=R.find(r=>r[1]==f);return r[1]}
+          // compounds are picked by formula; map formula-id to RX keys
+          R.forEach(r=>{});
+          function mapKeys(){}
+          function map(m){const c=el("div","card","",m);ENEM.forEach((e,i)=>{const n=el("div","node"+(i<unlocked?"":" lock"),"",c);el("span","",i<unlocked?e[2]:"🔒",n).style.fontSize="26px";el("span","",(i+1)+". "+(L=="ar"?e[1]:e[0]),n);if(i<unlocked){const b=el("button","",t("go"),n);b.onclick=()=>{stage=i;startB();tab="adv";render()}}})}
+          function startB(){const e=ENEM[stage];bt={ehp:e[3],emax:e[3],hp:100,sh:0,stun:0,weak:0,msg:""};fx=[]}
+          function adv(m){if(!bt)startB();const c=el("div","card","",m);const cv=el("canvas","","",c);cv.width=360;cv.height=200;cv.id="cv";
+          const a=el("div","acts","",c);const mk=(txt,fn)=>{const b=el("button","",txt,a);b.onclick=()=>{if(bt.ehp<=0||bt.hp<=0){startB();render();return}fn();enemy();render()};};
+          mk("⚔️ "+t("hit")+" (8)",()=>dmg(8));
+          disc.forEach(f=>{const r=R.find(r=>r[1]==f);mk(f+" · "+t(r[4]),()=>use(r))});
+          if(!disc.length)el("p","res",t("need"),c);
+          el("div","res",bt.msg,c)}
+          function dmg(n){n=Math.round(n*(bt.weak?0.9:1));bt.ehp=Math.max(0,bt.ehp-n);fx.push(["-"+n,250,60,40]);bt.msg="⚔️ -"+n}
+          function use(r){if(r[4]=="dmg")dmg(r[5]);else if(r[4]=="heal"){bt.hp=Math.min(100,bt.hp+r[5]);fx.push(["+"+r[5],90,60,40])}else if(r[4]=="shield"){bt.sh+=r[5];fx.push(["🛡"+r[5],90,60,40])}else if(r[4]=="weak"){bt.weak=3;dmg(6)}else if(r[4]=="stun"){bt.stun=1;dmg(4)}}
+          function enemy(){if(bt.ehp<=0){bt.msg=t("win");if(stage+1==unlocked&&unlocked<ENEM.length)unlocked++;return}
+          if(bt.stun){bt.stun=0;return}let d=ENEM[stage][4]+Math.floor(Math.random()*5);if(bt.weak){d-=4;bt.weak--}d=Math.max(1,d);const s=Math.min(bt.sh,d);bt.sh-=s;bt.hp=Math.max(0,bt.hp-(d-s));fx.push(["-"+(d-s),90,60,40]);if(bt.hp<=0)bt.msg=t("lose")}
+          function burst(){}
+          let tk=0;const P=Array.from({length:40},()=>({x:Math.random()*360,y:Math.random()*200,v:.2+Math.random()}));
+          function draw(){requestAnimationFrame(draw);tk++;const cv=$("cv");if(!cv||tab!="adv"||!bt)return;const g=cv.getContext("2d");
+          const gr=g.createLinearGradient(0,0,0,200);gr.addColorStop(0,"#1a1050");gr.addColorStop(1,"#0a3a4a");g.fillStyle=gr;g.fillRect(0,0,360,200);
+          g.fillStyle="#ffffff88";P.forEach(p=>{p.y-=p.v;if(p.y<0)p.y=200;g.fillRect(p.x,p.y,2,2)});
+          g.fillStyle="#0d2b2b";g.fillRect(0,160,360,40);
+          g.textAlign="center";g.font="54px serif";g.shadowColor="#4df0c4";g.shadowBlur=18;
+          g.fillText("🧑‍🔬",80,150+Math.sin(tk/15)*4);g.shadowColor="#ff4d6d";g.fillText(ENEM[stage][2],280,150+Math.cos(tk/12)*5);g.shadowBlur=0;
+          const bar=(x,v,mx,col,lab)=>{g.fillStyle="#0008";g.fillRect(x,12,110,12);g.fillStyle=col;g.fillRect(x,12,110*v/mx,12);g.fillStyle="#fff";g.font="11px sans-serif";g.textAlign="left";g.fillText(lab+" "+v,x+4,22)};
+          bar(15,bt.hp,100,"#4df0c4",t("hp"));bar(235,bt.ehp,bt.emax,"#ff4d6d",t("hp"));
+          if(bt.sh){g.fillText("🛡"+bt.sh,15,40)}
+          fx=fx.filter(f=>f[1]>0);g.textAlign="center";g.font="bold 22px sans-serif";fx.forEach(f=>{f[1]--;f[3]--;g.fillStyle="#ffe14d";g.fillText(f[0],f[2]+(f[0][0]=="-"?190:0),90+f[3]*0.8-40)})}
+          $("lang").onchange=e=>setLang(e.target.value);
+          setLang("ar");draw();setTimeout(()=>{$("sp").style.opacity=0;setTimeout(()=>$("sp").remove(),1000)},1800);
+          </script></body></html>
+
+          CHEMEOF
+      - name: Prepare Capacitor project
+        run: |
+          npm init -y
+          npm i @capacitor/core @capacitor/cli @capacitor/android
+          npx cap init "Chem Quest" com.yusufdghaish.chemquest --web-dir www
+          npx cap add android
+          npx cap sync android
+      - name: Build debug APK
+        run: cd android && chmod +x gradlew && ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChemQuest-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
