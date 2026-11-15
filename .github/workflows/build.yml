@@ -141,7 +141,7 @@ jobs:
           CHEMEOF
       - name: Prepare Capacitor project
         run: |
-          npm init -y
+          echo '{"name":"chemquest","version":"1.0.0"}' > package.json
           npm i @capacitor/core @capacitor/cli @capacitor/android
           npx cap init "Chem Quest" com.yusufdghaish.chemquest --web-dir www
           npx cap add android
